@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>客戶生產進度表</title>
+    <title>客戶生產進度表 - 黑魂版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -15,8 +15,9 @@
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
-            background-color: #f7f7f7;
+            background-color: #000000; /* 純黑背景，降低螢幕發光 */
             -webkit-tap-highlight-color: transparent;
+            color: #f3f4f6; /* 預設淺色文字 */
         }
         .no-scrollbar::-webkit-scrollbar {
             display: none;
@@ -25,18 +26,22 @@
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        /* 修正輸入框日期圖示在深色模式下的顏色 */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
     </style>
 </head>
-<body class="bg-stone-100">
+<body class="bg-black">
 
-    <div id="root" class="flex items-center justify-center min-h-screen text-stone-500 font-bold">
-        連線至 Firebase 雲端資料庫中...
+    <div id="root" class="flex items-center justify-center min-h-screen text-gray-400 font-bold">
+        連線至 Firebase 雲端中...
     </div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // 1. 初始化你的 Firebase 專案設定碼
+        // 1. Firebase 初始化
         const firebaseConfig = {
             apiKey: "AIzaSyCFwTYLLNAC0rOt6glzlgyN1ZMBFPsCzh0",
             authDomain: "workdate-f1043.firebaseapp.com",
@@ -46,13 +51,11 @@
             appId: "1:806117412135:web:cf02ed13fe62f5b6f7ad02"
         };
         
-        // 防止重複初始化
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.firestore();
 
-        // 單位轉換工具 (1打 = 12雙)
         const toPairs = (dozens, pairs) => (parseInt(dozens) || 0) * 12 + (parseInt(pairs) || 0);
         
         const formatPairs = (totalPairs) => {
@@ -69,7 +72,6 @@
             const [loading, setLoading] = useState(true);
             const [activeTab, setActiveTab] = useState('active'); 
             
-            // 各種彈出視窗狀態
             const [showModal, setShowModal] = useState(false);
             const [customer, setCustomer] = useState('');
             const [productName, setProductName] = useState('');
@@ -82,7 +84,7 @@
             const [actionDozens, setActionDozens] = useState('');
             const [actionPairs, setActionPairs] = useState('');
 
-            // 2. 核心：監聽雲端資料庫進行實時同步 (Real-time Listener)
+            // 2. 實時同步
             useEffect(() => {
                 const unsubscribe = db.collection('orders')
                     .onSnapshot((snapshot) => {
@@ -93,19 +95,17 @@
                         setOrders(ordersData);
                         setLoading(false);
                     }, (error) => {
-                        console.error("資料庫連線失敗:", error);
-                        alert("資料庫連線異常，請檢查 Firebase 控制台設定是否正確。");
+                        console.error("Firebase 連線失敗:", error);
+                        setLoading(false);
                     });
 
                 return () => unsubscribe();
             }, []);
 
-            // 自動記憶已存在的客戶分類名單
             const uniqueCustomers = useMemo(() => {
                 return [...new Set(orders.map(o => o.customer).filter(Boolean))];
             }, [orders]);
 
-            // 圖片前端自動縮放壓縮
             const handleImageChange = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -126,13 +126,12 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         
-                        setImageSrc(canvas.toDataURL('image/jpeg', 0.6)); // 壓縮品質優化至 0.6
+                        setImageSrc(canvas.toDataURL('image/jpeg', 0.6));
                         setIsCompressing(false);
                     };
                 };
             };
 
-            // 雲端：建立新訂單
             const handleAddOrder = async (e) => {
                 e.preventDefault();
                 const totalTarget = toPairs(targetDozens, targetPairsInput);
@@ -145,7 +144,7 @@
                         targetPairs: totalTarget,
                         sewingPairs: 0,
                         deliveredPairs: 0,
-                        imageUrl: imageSrc || "", // 沒有圖片則為空字串
+                        imageUrl: imageSrc || "",
                         date: new Date().toISOString().split('T')[0],
                         status: 'active'
                     });
@@ -161,7 +160,6 @@
                 }
             };
 
-            // 雲端：批次進度數字累加
             const handleActionSubmit = async (e) => {
                 e.preventDefault();
                 const addedPairs = toPairs(actionDozens, actionPairs);
@@ -186,26 +184,22 @@
                 setActionPairs('');
             };
 
-            // 雲端：結案歸檔
             const archiveOrder = async (id) => {
                 if(confirm('確定要將此訂單結案歸檔嗎？')) {
                     await db.collection('orders').doc(id).update({ status: 'archived' });
                 }
             };
 
-            // 雲端：防呆一鍵還原
             const unarchiveOrder = async (id) => {
                 await db.collection('orders').doc(id).update({ status: 'active' });
             };
 
-            // 雲端：永久刪除
             const deleteOrder = async (id) => {
-                if(confirm('確定要永久刪除這筆訂單紀錄嗎？刪除後雲端資料將完全消失！')) {
+                if(confirm('確定要永久刪除這筆訂單數據嗎？刪除後無法復原！')) {
                     await db.collection('orders').doc(id).delete();
                 }
             };
 
-            // 公司分組與雙層日期排序邏輯
             const { groupedOrders, sortedCustomers } = useMemo(() => {
                 const filtered = orders.filter(order => order.status === activeTab);
                 const groups = {};
@@ -222,36 +216,39 @@
 
             if (loading) {
                 return (
-                    <div className="flex flex-col items-center justify-center min-h-screen text-stone-600 font-bold bg-stone-100">
-                        <p className="text-lg animate-pulse">正在與雲端資料庫同步中...</p>
+                    <div className="flex flex-col items-center justify-center min-h-screen text-gray-400 font-bold bg-black">
+                        <p className="text-lg animate-pulse tracking-widest">與雲端黑魂同步中...</p>
                     </div>
                 );
             }
 
             return (
-                <div className="min-h-screen bg-[#faf9f6] max-w-md mx-auto shadow-2xl flex flex-col relative border-x border-stone-200">
+                {/* 整體背景調整為深灰黑色 */}
+                <div className="min-h-screen bg-gray-950 max-w-md mx-auto shadow-2xl flex flex-col relative border-x border-gray-800">
                     
                     <datalist id="customer-options">
                         {uniqueCustomers.map((c, i) => <option key={i} value={c} />)}
                     </datalist>
 
-                    <header className="bg-white/90 backdrop-blur-md px-5 pt-8 pb-4 sticky top-0 z-20 border-b border-stone-100 shadow-sm">
+                    {/* Header: 換成深色背景，調整文字顏色 */}
+                    <header className="bg-gray-950/90 backdrop-blur-md px-5 pt-8 pb-4 sticky top-0 z-20 border-b border-gray-800 shadow-sm">
                         <div className="flex justify-between items-center mb-5">
-                            <h1 className="text-2xl font-bold tracking-tight text-stone-900">客戶生產進度表</h1>
-                            <span className="text-xs font-mono bg-emerald-500 text-white px-2 py-0.5 rounded-md animate-pulse">雲端連線中</span>
+                            <h1 className="text-2xl font-bold tracking-tight text-white">客戶生產進度表</h1>
+                            <span className="text-xs font-mono bg-emerald-600 text-white px-2 py-0.5 rounded-md animate-pulse">雲端連線中</span>
                         </div>
                         
-                        <div className="flex bg-stone-100 p-1 rounded-xl">
+                        {/* Tab Switcher: 調整為深色配色 */}
+                        <div className="flex bg-gray-800 p-1 rounded-xl">
                             <button 
                                 onClick={() => setActiveTab('active')}
                                 className={`flex-1 py-3 text-center text-sm font-bold rounded-lg transition-all ${
-                                    activeTab === 'active' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-400'
+                                    activeTab === 'active' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
                                 }`}
                             >進行中</button>
                             <button 
                                 onClick={() => setActiveTab('archived')}
                                 className={`flex-1 py-3 text-center text-sm font-bold rounded-lg transition-all ${
-                                    activeTab === 'archived' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-400'
+                                    activeTab === 'archived' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'
                                 }`}
                             >已歸檔</button>
                         </div>
@@ -262,99 +259,100 @@
                             sortedCustomers.map(customerName => (
                                 <div key={customerName} className="space-y-4">
                                     
-                                    {/* 公司懸浮分類標題 */}
-                                    <div className="flex items-center gap-2 pb-2 border-b-2 border-stone-200 sticky top-[120px] bg-[#faf9f6]/95 backdrop-blur-sm z-10 py-2">
-                                        <div className="w-2 h-6 bg-stone-800 rounded-full"></div>
-                                        <h2 className="text-xl font-black text-stone-800 tracking-wider">{customerName}</h2>
-                                        <span className="ml-auto bg-stone-200 text-stone-600 text-xs font-bold px-2.5 py-1 rounded-full">
+                                    {/* 公司懸浮分類標題: 調整為深色 */}
+                                    <div className="flex items-center gap-2 pb-2 border-b-2 border-gray-700 sticky top-[120px] bg-gray-950/95 backdrop-blur-sm z-10 py-2">
+                                        <div className="w-2 h-6 bg-gray-300 rounded-full"></div>
+                                        <h2 className="text-xl font-black text-white tracking-wider">{customerName}</h2>
+                                        <span className="ml-auto bg-gray-700 text-gray-300 text-xs font-bold px-2.5 py-1 rounded-full">
                                             {groupedOrders[customerName].length} 筆
                                         </span>
                                     </div>
 
-                                    {/* 訂單卡片 */}
+                                    {/* 訂單卡片: 換成灰白色背景，深色文字，提升在深色模式下的閱讀性 */}
                                     {groupedOrders[customerName].map(order => {
                                         const sewingPercent = Math.min(100, (order.sewingPairs / order.targetPairs) * 100) || 0;
                                         const deliverPercent = Math.min(100, (order.deliveredPairs / order.targetPairs) * 100) || 0;
                                         const isCompleted = order.deliveredPairs >= order.targetPairs;
 
                                         return (
-                                        <div key={order.id} className="bg-white rounded-2xl border border-stone-200/60 p-5 shadow-sm transition-all relative overflow-hidden">
+                                        <div key={order.id} className="bg-gray-800 rounded-2xl border border-gray-700 p-5 shadow-sm transition-all relative overflow-hidden">
                                             
                                             {isCompleted && order.status === 'active' && (
                                                 <div className="absolute -right-8 top-6 bg-emerald-500 text-white text-xs font-bold py-1 px-10 rotate-45 shadow-sm z-10">已達標</div>
                                             )}
 
-                                            {/* 條件渲染：沒傳圖就不顯示圖片區塊 */}
                                             {order.imageUrl && (
-                                                <div className="w-full h-40 rounded-xl overflow-hidden mb-4 bg-stone-50 border border-stone-100">
+                                                <div className="w-full h-40 rounded-xl overflow-hidden mb-4 bg-gray-900 border border-gray-700">
                                                     <img src={order.imageUrl} alt="產品外觀" className="w-full h-full object-cover" />
                                                 </div>
                                             )}
 
                                             <div className="flex justify-between items-start mb-4">
                                                 <div>
-                                                    <span className="text-xs text-stone-400 font-medium tracking-wider">產品名稱</span>
-                                                    <h3 className="text-xl font-bold text-stone-900 tracking-tight mt-0.5">{order.productName || '未命名產品'}</h3>
+                                                    <span className="text-xs text-gray-400 font-medium tracking-wider">產品名稱</span>
+                                                    <h3 className="text-xl font-bold text-white tracking-tight mt-0.5">{order.productName || '未命名產品'}</h3>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className="block text-xs font-mono text-stone-400">{order.date}</span>
+                                                    <span className="block text-xs font-mono text-gray-500">{order.date}</span>
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-4 border-t border-stone-100 pt-4">
+                                            {/* 進度條區域: 調整文字顏色 */}
+                                            <div className="space-y-4 border-t border-gray-700 pt-4">
                                                 <div>
                                                     <div className="flex justify-between items-end mb-1">
-                                                        <span className="text-xs text-stone-400 font-bold">總目標數量</span>
-                                                        <span className="text-lg font-black text-stone-900">{formatPairs(order.targetPairs)}</span>
+                                                        <span className="text-xs text-gray-400 font-bold">總目標數量</span>
+                                                        <span className="text-lg font-black text-gray-100">{formatPairs(order.targetPairs)}</span>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <div className="flex justify-between items-end mb-1.5">
-                                                        <span className="text-xs text-amber-700 font-bold">發包加工中</span>
-                                                        <span className="text-sm font-bold text-amber-700">{formatPairs(order.sewingPairs)}</span>
+                                                        <span className="text-xs text-amber-400 font-bold">發包加工中</span>
+                                                        <span className="text-sm font-bold text-amber-400">{formatPairs(order.sewingPairs)}</span>
                                                     </div>
-                                                    <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden">
+                                                    <div className="w-full bg-gray-700 h-2.5 rounded-full overflow-hidden">
                                                         <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${sewingPercent}%` }}></div>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <div className="flex justify-between items-end mb-1.5">
-                                                        <span className="text-xs text-emerald-700 font-bold">已完工交貨</span>
-                                                        <span className="text-sm font-bold text-emerald-700">{formatPairs(order.deliveredPairs)}</span>
+                                                        <span className="text-xs text-emerald-400 font-bold">已完工交貨</span>
+                                                        <span className="text-sm font-bold text-emerald-400">{formatPairs(order.deliveredPairs)}</span>
                                                     </div>
-                                                    <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden">
-                                                        <div className="bg-emerald-50 h-full transition-all duration-500" style={{ width: `${deliverPercent}%` }}></div>
+                                                    <div className="w-full bg-gray-700 h-2.5 rounded-full overflow-hidden">
+                                                        <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${deliverPercent}%` }}></div>
                                                     </div>
                                                 </div>
                                             </div>
 
+                                            {/* 按鈕區域: 換成深色模式按鈕樣式 */}
                                             {order.status === 'active' ? (
-                                                <div className="mt-5 pt-4 border-t border-stone-100 space-y-3">
+                                                <div className="mt-5 pt-4 border-t border-gray-700 space-y-3">
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <button 
                                                             onClick={() => setActionModal({ isOpen: true, type: 'sewing', orderId: order.id, currentPairs: order.sewingPairs || 0 })}
-                                                            className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/60 font-bold py-3 rounded-xl text-sm transition-colors active:scale-[0.98]"
+                                                            className="bg-amber-950 hover:bg-amber-900 text-amber-200 border border-amber-700 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
                                                         >+ 記發包</button>
                                                         <button 
                                                             onClick={() => setActionModal({ isOpen: true, type: 'deliver', orderId: order.id, currentPairs: order.deliveredPairs || 0 })}
-                                                            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 font-bold py-3 rounded-xl text-sm transition-colors active:scale-[0.98]"
+                                                            className="bg-emerald-950 hover:bg-emerald-900 text-emerald-200 border border-emerald-700 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
                                                         >+ 記交貨</button>
                                                     </div>
                                                     <button 
                                                         onClick={() => archiveOrder(order.id)}
-                                                        className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
+                                                        className="w-full bg-gray-100 hover:bg-white text-gray-900 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
                                                     >結案歸檔</button>
                                                 </div>
                                             ) : (
-                                                <div className="mt-5 pt-4 border-t border-stone-100">
+                                                <div className="mt-5 pt-4 border-t border-gray-700">
                                                     <div className="grid grid-cols-2 gap-2">
                                                         <button 
                                                             onClick={() => unarchiveOrder(order.id)}
-                                                            className="bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
-                                                        >↩ 還原至進行中</button>
+                                                            className="bg-gray-700 hover:bg-gray-600 text-gray-100 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
+                                                        >↩ 還原進行</button>
                                                         <button 
                                                             onClick={() => deleteOrder(order.id)}
-                                                            className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
+                                                            className="bg-red-950 hover:bg-red-900 text-red-200 border border-red-700 font-bold py-3.5 rounded-xl text-sm transition-colors active:scale-[0.98]"
                                                         >永久刪除</button>
                                                     </div>
                                                 </div>
@@ -365,101 +363,101 @@
                                 </div>
                             ))
                         ) : (
-                            <div className="flex flex-col items-center justify-center pt-24 text-stone-400">
+                            <div className="flex flex-col items-center justify-center pt-24 text-gray-600">
                                 <span className="text-4xl mb-2">📦</span>
-                                <p className="text-sm">此分類目前沒有任何訂單數據</p>
+                                <p className="text-sm">此分類目前沒有訂單數據</p>
                             </div>
                         )}
                     </main>
 
-                    {/* 懸浮新增按鈕 */}
+                    {/* 懸浮新增按鈕: 改成深黑底白字 */}
                     {activeTab === 'active' && (
                         <button 
                             onClick={() => setShowModal(true)}
-                            className="fixed bottom-6 right-1/2 translate-x-[150px] md:right-8 md:translate-x-0 w-14 h-14 bg-stone-950 text-white rounded-full shadow-xl flex items-center justify-center text-3xl font-light hover:scale-105 active:scale-95 transition-transform z-30"
+                            className="fixed bottom-6 right-1/2 translate-x-[150px] md:right-8 md:translate-x-0 w-14 h-14 bg-white text-gray-950 rounded-full shadow-2xl flex items-center justify-center text-3xl font-light hover:scale-105 active:scale-95 transition-transform z-30"
                         >＋</button>
                     )}
 
-                    {/* 新增訂單視窗 */}
+                    {/* Modal Area: 換成深色背景，調整文字與輸入框樣式 */}
                     {showModal && (
-                        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-end justify-center">
-                            <div className="bg-white w-full max-w-md rounded-t-3xl p-6 border-t border-stone-200 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
-                                <div className="flex justify-between items-center mb-5 sticky top-0 bg-white z-10 pb-2">
-                                    <h2 className="text-lg font-bold text-stone-900">建立新訂單</h2>
-                                    <button onClick={() => setShowModal(false)} className="text-stone-400 text-xl p-1">✕</button>
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center">
+                            <div className="bg-gray-800 w-full max-w-md rounded-t-3xl p-6 border-t border-gray-700 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+                                <div className="flex justify-between items-center mb-5 sticky top-0 bg-gray-800 z-10 pb-2 border-b border-gray-700">
+                                    <h2 className="text-lg font-bold text-white">建立新訂單</h2>
+                                    <button onClick={() => setShowModal(false)} className="text-gray-500 text-xl p-1">✕</button>
                                 </div>
 
                                 <form onSubmit={handleAddOrder} className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-stone-500 tracking-wider mb-1.5">客戶名稱 / 分類</label>
+                                        <label className="block text-xs font-bold text-gray-400 tracking-wider mb-1.5">客戶名稱 / 分類</label>
                                         <input 
                                             type="text" list="customer-options" placeholder="輸入或選擇客戶公司" 
                                             value={customer} onChange={(e) => setCustomer(e.target.value)}
-                                            className="w-full px-4 py-3.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 focus:outline-none focus:border-stone-900 text-sm"
+                                            className="w-full px-4 py-3.5 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-white text-sm"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-stone-500 tracking-wider mb-1.5">產品款式名稱</label>
+                                        <label className="block text-xs font-bold text-gray-400 tracking-wider mb-1.5">產品款式名稱</label>
                                         <input 
                                             type="text" placeholder="例如：五趾襪、LitePro輕職人手套" 
                                             value={productName} onChange={(e) => setProductName(e.target.value)}
-                                            className="w-full px-4 py-3.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 focus:outline-none focus:border-stone-900 text-sm font-bold"
+                                            className="w-full px-4 py-3.5 rounded-xl bg-gray-700 border border-gray-600 text-white placeholder-gray-500 focus:outline-none focus:border-white text-sm font-bold"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-stone-500 tracking-wider mb-1.5">總目標數量</label>
+                                        <label className="block text-xs font-bold text-gray-400 tracking-wider mb-1.5">總目標數量</label>
                                         <div className="flex gap-3">
                                             <div className="relative flex-1">
-                                                <input type="number" min="0" placeholder="0" value={targetDozens} onChange={(e) => setTargetDozens(e.target.value)} className="w-full pl-4 pr-8 py-3.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-right font-bold text-lg focus:outline-none" />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold">打</span>
+                                                <input type="number" min="0" placeholder="0" value={targetDozens} onChange={(e) => setTargetDozens(e.target.value)} className="w-full pl-4 pr-8 py-3.5 rounded-xl bg-gray-700 border border-gray-600 text-white text-right font-bold text-lg focus:outline-none focus:border-white" />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">打</span>
                                             </div>
                                             <div className="relative flex-1">
-                                                <input type="number" min="0" max="11" placeholder="0" value={targetPairsInput} onChange={(e) => setTargetPairsInput(e.target.value)} className="w-full pl-4 pr-8 py-3.5 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-right font-bold text-lg focus:outline-none" />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold">雙</span>
+                                                <input type="number" min="0" max="11" placeholder="0" value={targetPairsInput} onChange={(e) => setTargetPairsInput(e.target.value)} className="w-full pl-4 pr-8 py-3.5 rounded-xl bg-gray-700 border border-gray-600 text-white text-right font-bold text-lg focus:outline-none focus:border-white" />
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">雙</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-stone-500 tracking-wider mb-1.5">產品拍照上傳 (非必填)</label>
-                                        <div className="relative border-2 border-dashed border-stone-200 rounded-xl bg-stone-50 p-4 text-center">
+                                        <label className="block text-xs font-bold text-gray-400 tracking-wider mb-1.5">產品拍照上傳 (非必填)</label>
+                                        <div className="relative border-2 border-dashed border-gray-600 rounded-xl bg-gray-900 p-4 text-center">
                                             <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                                             {imageSrc ? (
-                                                <div><img src={imageSrc} className="mx-auto h-24 object-cover rounded-lg" /><p className="text-xs text-emerald-600 mt-2">✓ 照片已前端自動壓縮</p></div>
-                                            ) : (<p className="text-sm font-medium text-stone-700">{isCompressing ? "高畫質壓縮中..." : "點擊拍照或選圖"}</p>)}
+                                                <div><img src={imageSrc} className="mx-auto h-24 object-cover rounded-lg" /><p className="text-xs text-emerald-400 mt-2">✓ 照片已完成深色優化壓縮</p></div>
+                                            ) : (<p className="text-sm font-medium text-gray-500">{isCompressing ? "壓縮中..." : "點擊拍照或選圖"}</p>)}
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 pt-3">
-                                        <button type="button" onClick={() => setShowModal(false)} className="bg-stone-100 text-stone-700 py-3.5 rounded-xl text-sm font-bold">取消</button>
-                                        <button type="submit" disabled={isCompressing} className="bg-stone-950 text-white py-3.5 rounded-xl text-sm font-bold disabled:bg-stone-300">建立雲端工單</button>
+                                        <button type="button" onClick={() => setShowModal(false)} className="bg-gray-700 text-gray-200 py-3.5 rounded-xl text-sm font-bold hover:bg-gray-600">取消</button>
+                                        <button type="submit" disabled={isCompressing} className="bg-white text-gray-950 py-3.5 rounded-xl text-sm font-bold disabled:bg-gray-600 Disabled:text-gray-400">建立雲端工單</button>
                                     </div>
                                 </form>
                             </div>
                         </div>
                     )}
 
-                    {/* 批次數字累加視窗 */}
+                    {/* Action Modal: 換成深色背景 */}
                     {actionModal.isOpen && (
-                        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-slide-up">
+                        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-gray-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-slide-up border border-gray-700">
                                 <div className="text-center mb-6">
-                                    <h2 className="text-xl font-bold text-stone-900">
+                                    <h2 className="text-xl font-bold text-white">
                                         {actionModal.type === 'sewing' ? '紀錄本次發包數量' : '紀錄本次交貨數量'}
                                     </h2>
-                                    <p className="text-xs text-stone-400 mt-1">輸入本次運送的包裝數量，系統會自動在雲端累加</p>
+                                    <p className="text-xs text-gray-400 mt-1">輸入本次運送的包裝數量</p>
                                 </div>
                                 <form onSubmit={handleActionSubmit} className="space-y-5">
                                     <div className="flex gap-4">
                                         <div className="relative flex-1">
-                                            <label className="block text-xs font-bold text-stone-500 text-center mb-2">幾打？</label>
-                                            <input type="number" min="0" placeholder="0" autoFocus value={actionDozens} onChange={(e) => setActionDozens(e.target.value)} className="w-full text-center py-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-2xl font-black focus:outline-none focus:border-stone-900" />
+                                            <label className="block text-xs font-bold text-gray-400 text-center mb-2">幾打？</label>
+                                            <input type="number" min="0" placeholder="0" autoFocus value={actionDozens} onChange={(e) => setActionDozens(e.target.value)} className="w-full text-center py-4 rounded-xl bg-gray-700 border border-gray-600 text-white text-2xl font-black focus:outline-none focus:border-white" />
                                         </div>
                                         <div className="relative flex-1">
-                                            <label className="block text-xs font-bold text-stone-500 text-center mb-2">幾雙？</label>
-                                            <input type="number" min="0" max="11" placeholder="0" value={actionPairs} onChange={(e) => setActionPairs(e.target.value)} className="w-full text-center py-4 rounded-xl bg-stone-50 border border-stone-200 text-stone-900 text-2xl font-black focus:outline-none focus:border-stone-900" />
+                                            <label className="block text-xs font-bold text-gray-400 text-center mb-2">幾雙？</label>
+                                            <input type="number" min="0" max="11" placeholder="0" value={actionPairs} onChange={(e) => setActionPairs(e.target.value)} className="w-full text-center py-4 rounded-xl bg-gray-700 border border-gray-600 text-white text-2xl font-black focus:outline-none focus:border-white" />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 pt-2">
-                                        <button type="button" onClick={closeActionModal} className="bg-stone-100 text-stone-700 font-bold py-3.5 rounded-xl text-sm">取消</button>
+                                        <button type="button" onClick={closeActionModal} className="bg-gray-700 text-gray-200 font-bold py-3.5 rounded-xl text-sm">取消</button>
                                         <button type="submit" className={`font-bold py-3.5 rounded-xl text-sm text-white ${actionModal.type === 'sewing' ? 'bg-amber-600' : 'bg-emerald-600'}`}>確認累加</button>
                                     </div>
                                 </form>
