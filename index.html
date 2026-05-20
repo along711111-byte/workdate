@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>客戶生產進度表 - 黑魂全螢幕版</title>
+    <title>客戶生產進度表 - 黑魂全螢幕直式相片版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -331,13 +331,14 @@
 
                                     return (
                                         <div key={order.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-5 relative overflow-hidden shadow-xl">
-                                            <button onClick={() => openEditModal(order)} className="absolute top-4 right-4 text-gray-500 p-2 hover:text-white transition-colors">
+                                            <button onClick={() => openEditModal(order)} className="absolute top-4 right-4 text-gray-500 p-2 hover:text-white transition-colors z-10">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                                             </button>
 
+                                            {/* 將圖片容器改為適應直式照片的樣式，拿掉固定高度，改為 max-h-96 讓直圖可以延伸 */}
                                             {order.imageUrl && (
-                                                <div className="w-full bg-black rounded-xl mb-4 border border-gray-800 p-2 flex justify-center">
-                                                    <img src={order.imageUrl} className="w-full h-48 object-contain rounded-lg" alt="產品圖片" />
+                                                <div className="w-full bg-black rounded-xl mb-4 border border-gray-800 p-2 flex justify-center items-center overflow-hidden">
+                                                    <img src={order.imageUrl} className="w-full h-auto max-h-96 object-contain rounded-lg" alt="產品圖片" />
                                                 </div>
                                             )}
                                             
@@ -410,7 +411,7 @@
                                     <div><label className="text-[10px] font-bold text-gray-500 block mb-2 tracking-widest">產品拍照</label>
                                     <div className="relative border-2 border-dashed border-gray-700 rounded-2xl p-4 text-center bg-gray-800/50">
                                         <input type="file" accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0" />
-                                        {imageSrc ? <img src={imageSrc} className="h-20 mx-auto rounded-lg" /> : <p className="text-gray-500 text-xs">{isCompressing ? "壓縮中..." : "點擊上傳照片"}</p>}
+                                        {imageSrc ? <img src={imageSrc} className="h-32 object-contain mx-auto rounded-lg" /> : <p className="text-gray-500 text-xs">{isCompressing ? "壓縮中..." : "點擊上傳照片"}</p>}
                                     </div></div>
                                     <button type="submit" disabled={isCompressing} className="w-full bg-white text-black py-4 rounded-xl font-bold text-base mt-4 active:scale-95 transition-all">儲存</button>
                                 </form>
@@ -470,7 +471,7 @@
                         </div>
                     )}
 
-                    {/* 單筆紀錄修改 Modal */}
+                    {/* 單筆紀錄修改 Modal (已移除時間) */}
                     {editLogModal.isOpen && (
                         <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-6">
                             <div className="bg-gray-800 w-full max-w-sm rounded-3xl p-6 border border-gray-700 shadow-2xl">
