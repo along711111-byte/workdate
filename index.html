@@ -105,6 +105,9 @@
                 dozens: '', pairs: '', dateString: '' 
             });
 
+            // 大圖預覽狀態
+            const [zoomImage, setZoomImage] = useState(null);
+
 
             useEffect(() => {
                 const unsubscribe = db.collection('orders').onSnapshot(snapshot => {
@@ -338,7 +341,15 @@
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                                             </button>
 
-                                            {order.imageUrl && <img src={order.imageUrl} className="w-full h-36 object-cover rounded-xl mb-4 bg-black border border-gray-800" />}
+                                            {/* 圖片點擊可放大功能 */}
+                                            {order.imageUrl && (
+                                                <img 
+                                                    src={order.imageUrl} 
+                                                    onClick={() => setZoomImage(order.imageUrl)}
+                                                    className="w-full h-36 object-cover rounded-xl mb-4 bg-black border border-gray-800 cursor-pointer hover:opacity-80 active:scale-[0.99] transition-all" 
+                                                    alt="產品款式"
+                                                />
+                                            )}
                                             
                                             <div className="mb-4 pr-8">
                                                 <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">產品款式</span>
@@ -502,6 +513,32 @@
                                     </div>
                                 </form>
                             </div>
+                        </div>
+                    )}
+
+                    {/* 點擊圖片後的放大預覽 Lightbox 彈窗 */}
+                    {zoomImage && (
+                        <div 
+                            className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4"
+                            onClick={() => setZoomImage(null)}
+                        >
+                            <div className="relative max-w-full max-h-[85vh] flex items-center justify-center">
+                                {/* 右上角關閉按鈕 */}
+                                <button 
+                                    className="absolute -top-14 right-2 text-white bg-gray-900/80 hover:bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center text-xl font-bold border border-gray-700 transition-all shadow-xl"
+                                    onClick={() => setZoomImage(null)}
+                                >
+                                    ✕
+                                </button>
+                                {/* 點擊圖片本體阻止點擊事件向外擴散(不會觸發背景關閉) */}
+                                <img 
+                                    src={zoomImage} 
+                                    className="max-w-full max-h-[80vh] object-contain rounded-xl border border-gray-800 shadow-2xl" 
+                                    onClick={(e) => e.stopPropagation()} 
+                                    alt="圖片放大預覽"
+                                />
+                            </div>
+                            <p className="text-gray-500 text-xs mt-4 tracking-wider">點擊背景任意處可返回</p>
                         </div>
                     )}
                 </div>
